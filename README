@@ -1,0 +1,1 @@
+A simple tool to help Ruby developers understand the Bonjour (Zeroconf) services running on their network.  It's useful when writing your own clients using the DNSSD gem.
