@@ -1,24 +1,44 @@
 require 'rubygems'
 gem 'dnssd', '0.7.1'
 require 'dnssd'
-require 'timeout'
 
-s = DNSSD.browse('_http._tcp') do |browse_reply|
-  if (DNSSD::Flags::Add & browse_reply.flags.to_i) != 0
-    # We now need to resolve the service to get it's full details
-    begin
-      Timeout::timeout(2) do
-        DNSSD::resolve!(browse_reply.name, browse_reply.type, browse_reply.domain) do |resolve_reply|
-          puts "FOUND: #{resolve_reply.inspect}\n\ttext=#{resolve_reply.text_record.inspect}"
-        end
-      end
-    rescue Timeout::Error
+# Browse the network for web servers (_http._tcp services)
+puts "Scanning network for web servers"
+service = DNSSD.browse('_http._tcp.') do |reply|
+  if (reply.flags == DNSSD::Flags::Add)
+    puts "adding: #{reply.inspect}"
+
+    # Let's lookup the details
+    resolver_service = DNSSD.resolve(reply.name, reply.type, reply.domain) do |resolved|
+      puts "\tdomain = #{resolved.domain}"
+      puts "\tflags = #{resolved.flags.inspect}"
+      puts "\tfullname = #{resolved.fullname}"
+      puts "\tinterface = #{resolved.interface}"
+      puts "\tname = #{resolved.name}"
+      puts "\tport = #{resolved.port}"
+      puts "\tservice = #{resolved.service}"
+      puts "\ttarget = #{resolved.target}"
+      puts "\ttext_record = #{resolved.text_record.inspect}"
+      puts "\ttype = #{resolved.type}"
     end
+    sleep(2)
+    resolver_service.stop
   else
-    puts "REMOVING: #{browse_reply.inspect}"
+      puts "removing: #{reply.inspect}"
   end
 end
 
-puts "Scanning for services..."
-while true
+# Catch the interrupt signal
+interrupted = false
+Signal.trap("INT") do
+  interrupted = true
+end
+
+# Run until the application is interrupted
+loop do
+  if interrupted
+    puts "Halting network scan"
+    service.stop
+    exit
+  end
 end
